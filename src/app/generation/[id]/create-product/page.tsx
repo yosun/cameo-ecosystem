@@ -1,0 +1,227 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import MainNavigation from '@/components/navigation/main-nav';
+import GenerationPreview from '@/components/generation/generation-preview';
+import ProductCreationWizard from '@/components/product/product-creation-wizard';
+
+interface Generation {
+  id: string;
+  creator_id: string;
+  mode: string;
+  prompt?: string;
+  scene_url?: string;
+  image_url?: string;
+  status: string;
+  creator: {
+    id: string;
+    name: string;
+    trigger_word?: string;
+  };
+  user: {
+    id: string;
+    name: string;
+  };
+}
+
+interface Store {
+  id: string;
+  name: string;
+  owner_id: string;
+}
+
+export default function CreateProductPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [generation, setGeneration] = useState<Generation | null>(null);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (params.id) {
+      fetchGeneration();
+      fetchUserStores();
+    }
+  }, [params.id, session]);
+
+  const fetchGeneration = async () => {
+    try {
+      const response = await fetch(`/api/generations/${params.id}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch generation');
+      }
+
+      if (!data.generation.image_url) {
+        throw new Error('Generation does not have an image');
+      }
+
+      setGeneration(data.generation);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to fetch generation');
+    }
+  };
+
+  const fetchUserStores = async () => {
+    try {
+      const response = await fetch('/api/store');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch stores');
+      }
+
+      setStores(data.stores || []);
+      
+      // Auto-select first store if only one exists
+      if (data.stores?.length === 1) {
+        setSelectedStoreId(data.stores[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching stores:', error);
+      // Don't set error here as stores might not exist yet
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleProductCreated = (product: any) => {
+    // Redirect to the store or product page
+    router.push(`/store/${product.store.id}`);
+  };
+
+  const handleCancel = () => {
+    router.back();
+  };
+
+  const handleCreateStore = () => {
+    router.push('/store/new');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center">
+          <div className="text-red-600 mb-4">{error}</div>
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!generation) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Generation not found</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <MainNavigation />
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Create Product</h1>
+          <p className="mt-2 text-gray-600">
+            Transform your generated image into merchandise
+          </p>
+        </div>
+
+        {/* Generation Preview */}
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+          <h2 className="text-lg font-medium mb-4">Generated Image</h2>
+          <div className="flex items-start space-x-6">
+            <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+              <img
+                src={generation.image_url}
+                alt="Generated image"
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+            <div className="flex-1">
+              <div className="space-y-2 text-sm text-gray-600">
+                <div>
+                  <span className="font-medium">Creator:</span> {generation.creator.name}
+                </div>
+                <div>
+                  <span className="font-medium">Generated by:</span> {generation.user.name}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Store Selection */}
+        {stores.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h2 className="text-lg font-medium mb-4">Create a Store First</h2>
+            <p className="text-gray-600 mb-4">
+              You need to create a store before you can add products. Stores allow you to organize and sell your merchandise.
+            </p>
+            <button
+              onClick={handleCreateStore}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Create Store
+            </button>
+          </div>
+        ) : (
+          <>
+            {stores.length > 1 && (
+              <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+                <h2 className="text-lg font-medium mb-4">Select Store</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {stores.map((store) => (
+                    <div
+                      key={store.id}
+                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                        selectedStoreId === store.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setSelectedStoreId(store.id)}
+                    >
+                      <h3 className="font-medium">{store.name}</h3>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Product Creation Wizard */}
+            {selectedStoreId && (
+              <ProductCreationWizard
+                generationId={generation.id}
+                imageUrl={generation.image_url}
+                storeId={selectedStoreId}
+                onProductCreated={handleProductCreated}
+                onCancel={handleCancel}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

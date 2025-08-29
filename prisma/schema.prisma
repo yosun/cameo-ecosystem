@@ -1,0 +1,350 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?   // For email/password auth
+  emailVerified DateTime? // For NextAuth
+  image         String?   // For OAuth providers
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  generations Generation[]
+  stores      Store[]
+  orders      Order[]
+  accounts    Account[]
+  sessions    Session[]
+}
+
+// NextAuth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Creator {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  lora_url      String?
+  trigger_word  String?
+  status        LoRAStatus @default(PENDING)
+  
+  // Training images and consent
+  training_images String // JSON string of S3 URLs
+  consent_given   Boolean  @default(false)
+  fal_job_id      String?  // FAL training job ID
+  
+  // Stripe Connect integration
+  stripe_account_id       String? @unique
+  stripe_onboarding_complete Boolean @default(false)
+  
+  // Licensing configuration
+  allow_third_party_stores Boolean @default(true)
+  royalty_bps             Int     @default(1000) // 10%
+  min_price_cents         Int     @default(500)   // $5.00
+  max_discount_bps        Int     @default(2000)  // 20%
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  generations   Generation[]
+  products      Product[]
+  royalties     Royalty[]
+  transfers     Transfer[]
+}
+
+model Generation {
+  id          String @id @default(cuid())
+  creator_id  String
+  user_id     String
+  mode        GenerationMode
+  prompt      String?
+  scene_url   String?
+  image_url   String?
+  status      JobStatus @default(PENDING)
+  
+  // External service tracking
+  replicate_prediction_id String? // Track Replicate job ID
+  
+  creator     Creator @relation(fields: [creator_id], references: [id])
+  user        User    @relation(fields: [user_id], references: [id])
+  products    Product[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Store {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  owner_id    String
+  
+  // Store customization and branding
+  logo_url        String?
+  banner_url      String?
+  theme_color     String? @default("#3B82F6") // Default blue
+  custom_domain   String? @unique
+  is_public       Boolean @default(true)
+  
+  // Store settings
+  allow_reviews   Boolean @default(true)
+  auto_approve_products Boolean @default(false)
+  
+  // Stripe Connect integration for store owners
+  stripe_account_id String? @unique
+  
+  owner       User @relation(fields: [owner_id], references: [id])
+  products    Product[]
+  transfers   Transfer[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id            String @id @default(cuid())
+  store_id      String
+  generation_id String
+  creator_id    String
+  product_type  ProductType
+  price_cents   Int
+  status        ProductStatus @default(ACTIVE)
+  
+  store         Store      @relation(fields: [store_id], references: [id])
+  generation    Generation @relation(fields: [generation_id], references: [id])
+  creator       Creator    @relation(fields: [creator_id], references: [id])
+  orders        OrderItem[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Order {
+  id                String @id @default(cuid())
+  user_id           String
+  stripe_session_id String? @unique
+  stripe_payment_intent_id String?
+  status            OrderStatus @default(PENDING)
+  total_cents       Int
+  platform_fee_cents Int
+  
+  user              User @relation(fields: [user_id], references: [id])
+  items             OrderItem[]
+  royalties         Royalty[]
+  transfers         Transfer[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  order_id   String
+  product_id String
+  quantity   Int @default(1)
+  price_cents Int
+  
+  order      Order   @relation(fields: [order_id], references: [id])
+  product    Product @relation(fields: [product_id], references: [id])
+}
+
+model Royalty {
+  id          String @id @default(cuid())
+  order_id    String
+  creator_id  String
+  amount_cents Int
+  status      RoyaltyStatus @default(PENDING)
+  
+  order       Order   @relation(fields: [order_id], references: [id])
+  creator     Creator @relation(fields: [creator_id], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transfer {
+  id                String @id @default(cuid())
+  order_id          String
+  stripe_transfer_id String? @unique
+  recipient_type    TransferRecipient
+  creator_id        String?
+  store_id          String?
+  amount_cents      Int
+  status            TransferStatus @default(PENDING)
+  
+  order             Order    @relation(fields: [order_id], references: [id])
+  creator           Creator? @relation(fields: [creator_id], references: [id])
+  store             Store?   @relation(fields: [store_id], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+enum LoRAStatus {
+  PENDING
+  TRAINING
+  READY
+  FAILED
+}
+
+enum GenerationMode {
+  PHOTO
+  TEXT
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ProductType {
+  POSTCARD
+  SHIRT
+  STICKER
+  LEGGINGS
+  FIGURINE
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum RoyaltyStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum TransferRecipient {
+  CREATOR
+  STORE_OWNER
+}
+
+enum TransferStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Webhook processing and monitoring models
+model WebhookEvent {
+  id           String @id @default(cuid())
+  source       WebhookSource
+  event_type   String
+  payload      Json
+  signature    String?
+  processed_at DateTime?
+  retry_count  Int @default(0)
+  status       WebhookStatus @default(PENDING)
+  error_message String?
+  
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  
+  dead_letter_queue DeadLetterQueue?
+}
+
+model DeadLetterQueue {
+  id                String @id @default(cuid())
+  webhook_event_id  String @unique
+  final_error       String
+  reviewed          Boolean @default(false)
+  reviewed_by       String?
+  reviewed_at       DateTime?
+  
+  webhook_event     WebhookEvent @relation(fields: [webhook_event_id], references: [id])
+  
+  created_at        DateTime @default(now())
+}
+
+enum WebhookSource {
+  STRIPE
+  FAL
+  REPLICATE
+}
+
+enum WebhookStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  DEAD_LETTER
+}
+
+// Error tracking and monitoring
+model ErrorLog {
+  id         String @id @default(cuid())
+  level      String // 'error', 'warning', 'info'
+  message    String
+  stack      String?
+  context    String? // JSON string
+  userId     String?
+  creatorId  String?
+  storeId    String?
+  endpoint   String?
+  userAgent  String?
+  ip         String?
+  
+  createdAt  DateTime @default(now())
+  
+  @@index([level])
+  @@index([createdAt])
+  @@index([endpoint])
+}
