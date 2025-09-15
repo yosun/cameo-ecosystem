@@ -1,0 +1,151 @@
+# Implementation Plan
+
+- [x] **1. Set up project foundation and core infrastructure**  
+  - Initialize Next.js 14 project with TypeScript and Tailwind CSS  
+  - Configure Prisma with PostgreSQL database schema  
+  - Set up AWS S3 integration for file storage  
+  - _Requirements: 8.1, 8.2_
+
+- [x] **2. Implement authentication and user management**  
+  - Set up NextAuth.js with email/password and OAuth providers  
+  - Create User model and authentication middleware  
+  - Implement protected routes and session management  
+  - _(Infra/enabler)_
+
+- [x] **3. Create Creator LoRA training system**  
+  - **3.1 Creator profile & onboarding**  
+    - Create Creator model with LoRA status tracking  
+    - Implement image upload interface with consent validation  
+    - Build Creator profile management UI  
+    - _Requirements: 1.1, 1.2, 1.3_  
+  - **3.2 FAL AI integration**  
+    - Implement `/api/creator` endpoint for training job submission  
+    - Create webhook handler for FAL training completion  
+    - Add LoRA status tracking and error handling  
+    - _Requirements: 1.1, 1.2, 8.1_
+
+- [x] **4. Build 2D content generation system**  
+  - [x] **4.1 Generation interfaces**  
+    - Build Photo Mode UI for scene upload and processing  
+    - Implement Text Mode UI for prompt-based generation  
+    - Create generation queue status display  
+    - _Requirements: 2.1, 2.2, 2.3_  
+  - [x] **4.2 Replicate API integration**  
+    - Implement `/api/infer` endpoint for Photo Mode  
+    - Implement `/api/generate` endpoint for Text Mode  
+    - Create webhook handler for Replicate job completion  
+    - Add image storage and watermark application  
+    - _Requirements: 2.1, 2.2, 2.4, 8.2_
+
+- [x] **5. Implement merchandise system**  
+  - [x] **5.1 Product template engine**  
+    - Build product type definitions (postcard, shirt, sticker, leggings)  
+    - Implement image-to-product application logic  
+    - Create product preview generation system  
+    - _Requirements: 3.1, 3.2_  
+  - [x] **5.2 Product management interface**  
+    - Create product creation workflow UI  
+    - Implement product preview and customization options  
+    - Add product validation and specification checking  
+    - _Requirements: 3.1, 3.2, 3.3_
+
+- [x] **6. Develop store management system**  
+  - [x] **6.1 Store builder & management**  
+    - Implement Store model and creation interface  
+    - Build store customization and branding options  
+    - Create product listing and curation tools  
+    - _Requirements: 4.1, 4.2_  
+  - [x] **6.2 Licensing & policy enforcement**  
+    - Create licensing configuration interface for creators  
+    - Build policy validation for product listings  
+    - Implement pricing and discount limit enforcement  
+    - _Requirements: 4.1, 4.3, 7.1, 7.2_
+
+- [x] **7. Stripe Connect payment system**  
+  - **7.1 Connect onboarding**  
+    - Create Stripe account onboarding for creators and store owners  
+    - Build onboarding flow with account verification  
+    - Implement account status tracking and validation  
+    - _Requirements: 5.1, 7.3, 8.3_  
+  - **7.2 Checkout & payment processing**  
+    - Implement `/api/checkout` endpoint with destination charges  
+    - Build shopping cart and checkout UI  
+    - Create payment success and failure handling  
+    - _Requirements: 5.1, 5.2, 8.3_  
+  - **7.3 Royalty distribution**  
+    - Create transfer processing for creator royalties  
+    - Build automated payout calculation and execution  
+    - Implement transfer status tracking and error handling  
+    - _Requirements: 5.3, 7.2, 7.3_
+
+- [x] **8. Content safety and guardrails**  
+  - [x] **8.1 Filtering & validation**  
+    - Create NSFW detection and keyword filtering  
+    - Build consent validation for all uploads  
+    - Implement content policy enforcement  
+    - _Requirements: 6.1, 6.2_  
+  - [x] **8.2 Watermark & protection**  
+    - Implement watermark application to generated content  
+    - Build watermark removal system post-payment  
+    - Create content access control and protection  
+    - _Requirements: 6.3, 5.3_
+
+- [x] **9. Webhook processing system**  
+  - **9.1 Infrastructure**  
+    - Implement webhook validation and security (Stripe signature, FAL/Replicate secrets)  
+    - Build retry logic and dead letter queue handling  
+    - Create webhook status monitoring and logging  
+    - _Requirements: 8.1, 8.2, 8.3_  
+  - **9.2 External service handlers**  
+    - Create FAL webhook handler for LoRA training completion  
+    - Build Replicate webhook handler for generation completion  
+    - Implement Stripe webhook handler for payment events  
+    - _Requirements: 1.2, 2.4, 5.2, 5.3_
+
+- [x] **10. User interface & experience flows**  
+  - [x] **10.1 Landing & navigation**  
+    - Create responsive landing page with creator showcase  
+    - Implement navigation and user flow guidance  
+    - Build creator selection and browsing interface  
+    - _Requirements: 6.4_  
+  - [x] **10.2 Progressive workflow**  
+    - Create seamless flow from creator selection to generation  
+    - Build generation preview and product selection interface  
+    - Implement store browsing and checkout completion flow  
+    - _Requirements: 6.4_
+
+- [x] **11. Monitoring & analytics**  
+  - **11.1 Application monitoring**  
+    - Set up error tracking and performance monitoring  
+    - Create business metrics tracking (generations, sales, revenue)  
+    - Build creator and store analytics dashboards  
+    - _Requirements: 7.2, 7.3_  
+  - **11.2 Adminj & moderation**  
+    - Build admin dashboard for platform management  
+    - Implement content moderation and review tools  
+    - Create user and creator management interfaces  
+    - _Requirements: 6.1, 6.2, 7.4_
+
+- [x] **12. Testing & quality assurance**  
+  - [x] **12.1 Unit & integration tests**  
+    - Write tests for API endpoints and business logic  
+    - Create tests for external service integrations  
+    - Implement database operation and model tests  
+    - _Requirements: All requirements validation_  
+  - [x] **12.2 End-to-end tests**  
+    - Create E2E tests for complete user workflows  
+    - Test creator onboarding and LoRA training flow  
+    - Validate generation, purchase, and payment flows  
+    - _Requirements: Complete workflow validation_
+
+- [x] **13. Production deployment**  
+  - [x] **13.1 AWS infrastructure**  
+    - Configure ECS Fargate deployment with load balancer (or Amplify for faster path)  
+    - Set up RDS PostgreSQL with proper security groups  
+    - Configure S3 buckets and CloudFront distribution  
+    - _Requirements: Infrastructure deployment_  
+  - [x] **13.2 Production configuration**  
+    - Set up production Stripe Connect configuration  
+    - Configure FAL and Replicate production API keys  
+    - Implement CloudWatch monitoring and alerting  
+    - _Requirements: Production readiness_

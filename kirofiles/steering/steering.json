@@ -1,0 +1,11 @@
+{
+   "language": "typescript",
+   "framework": "nextjs-app-router",
+   "database": "prisma-postgres",
+   "style": { "tailwind": true, "lint": "eslint", "format": "prettier" },
+   "policies": {
+     "nsfw_default": false,
+     "block_keywords": ["nude","celebrity","logo","nike","adidas"]
+   },
+   "naming": { "Creator": "Creator", "Job": "Job" }
+ }
